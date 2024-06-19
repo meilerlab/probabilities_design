@@ -1,1 +1,4 @@
-# probabilities_design
+# Code for "Self-supervised machine learning methods for protein design improve sampling, but not the identification of high-fitness variants"
+![figure_1_overview_horizontal (2)](https://github.com/meilerlab/probabilities_design/assets/59534445/35dd28d5-2c5a-4245-81ad-8fc8c30eaeb7)
+## Rosetta code
+The Rosetta source code can be found at https://github.com/RosettaCommons/rosetta/. An overview of features implemented in this paper is given at https://www.rosettacommons.org/docs/latest/scripting_documentation/RosettaScripts/composite_protocols/Working-with-PerResidueProbabilitiesMetrics and a specific tutorial can be found at https://meilerlab.org/rosetta-workshop-2023/ (“Tutorial 2: Machine Learning in Rosetta”). Docker containers for Rosetta (including the Tensorflow/LibTorch extras version) can be found at https://hub.docker.com/r/rosettacommons/rosetta. 

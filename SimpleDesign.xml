@@ -1,0 +1,98 @@
+<ROSETTASCRIPTS>
+  
+    <SCOREFXNS>
+        <ScoreFunction name="scorefxn" weights="beta"/>
+    </SCOREFXNS>
+    
+    <RESIDUE_SELECTORS>
+​
+        <Chain name="design_chain" chains="%%design_chain%%"/>
+        <Chain name="antigen" chains="%%antigen%%"/>
+​
+    </RESIDUE_SELECTORS>
+    
+    <TASKOPERATIONS>
+    
+	<InitializeFromCommandline name="ifcl"/>
+	<ReadResfile name="rrf" filename="./resfile.resfile"/>
+	
+    </TASKOPERATIONS>
+     
+    <FILTERS>
+      
+	<ShapeComplementarity name="sc2" min_sc="0.6" verbose="1" quick="0" residue_selector1="design_chain" residue_selector2="antigen" write_int_area="true" write_median_dist="true" confidence="0"/>
+	
+	<ContactMolecularSurface name="cms" distance_weight="0.5" use_rosetta_radii="true" apolar_target="0" target_selector="antigen" binder_selector="design_chain" confidence="0"/>
+	
+    </FILTERS>
+    
+    <SIMPLE_METRICS>
+      
+        <SequenceMetric name="seq" residue_selector="design_chain"/>
+
+        <ProteinMPNNProbabilitiesMetric name="mpnn_all" custom_type="mpnn_all" residue_selctor="design_chain"/>
+	<PseudoPerplexityMetric name="perplexity_mpnn" metric="mpnn_all" custom_type="mpnn_pp_all" />
+	
+        <PerResidueEsmProbabilitiesMetric name="esm_all" custom_type="esm_all" residue_selctor="design_chain" model="esm2_t30_150M_UR50D" multirun="false"/>
+	<PseudoPerplexityMetric name="perplexity_esm" metric="esm_all" custom_type="esm_pp_all" />
+	
+        <MIFSTProbabilitiesMetric name="mifst_all" custom_type="mifst_all" residue_selctor="design_chain" multirun="false" gpu="false"/>
+	<PseudoPerplexityMetric name="perplexity_mifst" metric="mifst_all" custom_type="mifst_pp_all" />
+	
+	<AverageProbabilitiesMetric name="avg_all" metrics="mpnn_all,esm_all,mifst_all" used_cached_data="true" fail_on_missing_cache="false"/>
+​
+    </SIMPLE_METRICS>
+    
+    <MOVERS>
+      
+​
+        <RunSimpleMetrics name="run_metrics" metrics="seq,perplexity_mpnn,perplexity_esm,perplexity_mifst"/>
+        
+        <RunSimpleMetrics name="run_avg_metric" metrics="avg_all"/>
+​
+        <FastRelax name="IF_relax" relaxscript="InterfaceRelax2019" scorefxn="scorefxn" task_operations="ifcl,rrf">
+            <MoveMap name="rest" bb="true" chi="true"/>
+        </FastRelax>
+        
+        <FastRelax name="relax" relaxscript="MonomerRelax2019" scorefxn="scorefxn" task_operations="ifcl,rrf">
+            <MoveMap name="rest" bb="true" chi="true"/>
+        </FastRelax>
+​
+​
+	
+	<InterfaceAnalyzerMover name="IFA" scorefxn="scorefxn" pack_separated="true" interface_sc="true"
+            interface="%%interface%%"/>
+	    
+	<SampleSequenceFromProbabilities name="sample_mutations_mpnn" metric="mpnn_all" custom_type="sample_mpnn" pos_temp="%%pos_temp%%" aa_temp="%%aa_temp%%" prob_cutoff="0.2" delta_prob_cutoff="0.0" max_mutations="%%n_muts%%" task_operations="ifcl,rrf"/>
+	<SampleSequenceFromProbabilities name="sample_mutations_esm" metric="esm_all" custom_type="sample_esm" pos_temp="%%pos_temp%%" aa_temp="%%aa_temp%%" prob_cutoff="0.2" delta_prob_cutoff="0.0" max_mutations="%%n_muts%%" task_operations="ifcl,rrf"/>
+	<SampleSequenceFromProbabilities name="sample_mutations_mifst" metric="mifst_all" custom_type="sample_mifst" pos_temp="%%pos_temp%%" aa_temp="%%aa_temp%%" prob_cutoff="0.2" delta_prob_cutoff="0.0" max_mutations="%%n_muts%%" task_operations="ifcl,rrf"/>
+	
+	<SampleSequenceFromProbabilities name="sample_mutations_avg" metric="avg_all" custom_type="sample_avg" pos_temp="%%pos_temp%%" aa_temp="%%aa_temp%%" prob_cutoff="0.2" delta_prob_cutoff="0.0" max_mutations="%%n_muts%%" task_operations="ifcl,rrf"/>
+	
+	<ParsedProtocol name="analyze_IF">
+	        <Add mover="IFA"/>
+	        <Add filter="sc2"/>
+	        <Add filter="cms"/>
+	</ParsedProtocol>
+	
+	<If name="if_analyze_IF" value="%%AIFA%%" true_mover_name="analyze_IF"/>
+	
+	<If name="if_relax" value="%%AIFA%%" true_mover_name="IF_relax" false_mover_name="relax"/>
+	
+	<SwitchMover name="design" movers="if_relax,sample_mutations_mpnn,​sample_mutations_esm,sample_mutations_mifst,sample_mutations_avg" selected="%%protocol%%"/>
+	
+    </MOVERS>
+    
+    <PROTOCOLS>
+
+        <Add mover="design"/>
+        
+        <Add mover="run_metrics"/>
+        <Add mover="run_avg_metric"/>
+        
+        <Add mover="if_analyze_IF"/>
+	
+        
+    </PROTOCOLS>
+    <OUTPUT scorefxn="scorefxn"/>
+</ROSETTASCRIPTS>

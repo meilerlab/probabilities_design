@@ -1,0 +1,66 @@
+<ROSETTASCRIPTS>
+  
+    <SCOREFXNS>
+        <ScoreFunction name="scorefxn" weights="beta"/>
+    </SCOREFXNS>
+    
+    <RESIDUE_SELECTORS>
+
+        <Chain name="design_chain" chains="%%design_chain%%"/>
+        <Chain name="antigen" chains="%%antigen%%"/>
+	<Not name="not_design" selector="design_chain"/>
+
+    </RESIDUE_SELECTORS>
+    
+    <TASKOPERATIONS>
+    </TASKOPERATIONS>
+     
+    <FILTERS>
+      
+	<ShapeComplementarity name="sc2" min_sc="0.6" verbose="1" quick="0" residue_selector1="design_chain" residue_selector2="not_design" write_int_area="true" write_median_dist="true" confidence="0"/>
+	
+	<ContactMolecularSurface name="cms" distance_weight="0.5" use_rosetta_radii="true" apolar_target="0" target_selector="not_design" binder_selector="design_chain" confidence="0"/>
+	
+    </FILTERS>
+    
+    <SIMPLE_METRICS>
+      
+        <SequenceMetric name="seq" residue_selector="design_chain"/>
+
+        <ProteinMPNNProbabilitiesMetric name="mpnn_all" custom_type="mpnn_all" residue_selector="design_chain"/>
+	<PseudoPerplexityMetric name="perplexity_mpnn" metric="mpnn_all" custom_type="mpnn_pp_all"/>
+	
+        <PerResidueEsmProbabilitiesMetric name="esm_all" custom_type="esm_all" residue_selector="design_chain" model="esm2_t30_150M_UR50D" multirun="true" write_pssm="./pssm_test.pssm"/>
+	<PseudoPerplexityMetric name="perplexity_esm" metric="esm_all" custom_type="esm_pp_all"/>
+	
+        <MIFSTProbabilitiesMetric name="mifst_all" custom_type="mifst_all" residue_selector="design_chain" multirun="true" use_gpu="false"/>
+	<PseudoPerplexityMetric name="perplexity_mifst" metric="mifst_all" custom_type="mifst_pp_all"/>
+	
+    </SIMPLE_METRICS>
+    
+    <MOVERS>
+      
+        <RunSimpleMetrics name="run_metrics" metrics="seq,perplexity_mpnn,perplexity_mifst,perplexity_esm"/>
+       	
+	<InterfaceAnalyzerMover name="IFA" scorefxn="scorefxn" pack_separated="true" interface_sc="true"
+            interface="%%interface%%"/>
+	    
+	<ParsedProtocol name="analyze_IF">
+	        <Add mover="IFA"/>
+	        <Add filter="sc2"/>
+	        <Add filter="cms"/>
+	</ParsedProtocol>
+	
+	<If name="if_analyze_IF" value="%%AIFA%%" true_mover_name="analyze_IF"/>
+	
+    </MOVERS>
+    
+    <PROTOCOLS>
+
+        <Add mover="run_metrics"/>
+        
+        <Add mover="if_analyze_IF"/>
+        
+    </PROTOCOLS>
+    <OUTPUT scorefxn="scorefxn"/>
+</ROSETTASCRIPTS>

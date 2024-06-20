@@ -1,0 +1,67 @@
+<ROSETTASCRIPTS>
+  
+    <SCOREFXNS>
+        <ScoreFunction name="scorefxn" weights="beta"/>
+    </SCOREFXNS>
+    
+    <RESIDUE_SELECTORS>
+
+        <Chain name="design_chain" chains="%%design_chain%%"/>
+        <Chain name="antigen" chains="%%antigen%%"/>
+	<Not name="not_design" selector="design_chain"/>
+
+	<Index name="fixed" resnums="1,2,64,65,66,67,96,119,120,222,238"/>
+	<Not name="free" selector="fixed"/>
+
+	<RandomResidue name="random_5" selector="free" num_residues="5"/>
+
+	<StoredResidueSubset name="saved_random" subset_name="saved_random"/>
+
+    </RESIDUE_SELECTORS>
+    
+    <TASKOPERATIONS>
+    
+	<InitializeFromCommandline name="ifcl"/>
+	
+    </TASKOPERATIONS>
+     
+    <SIMPLE_METRICS>
+      
+        <PerResidueEsmProbabilitiesMetric name="esm_all" custom_type="esm_all" residue_selector="design_chain" model="esm2_t30_150M_UR50D" multirun="true"/>
+        <PerResidueEsmProbabilitiesMetric name="esm_five" custom_type="esm_five" residue_selector="saved_random" model="esm2_t30_150M_UR50D" multirun="true"/>
+	<PseudoPerplexityMetric name="perplexity_esm" metric="esm_all" custom_type="esm_pp_all"/>
+	
+        <MIFSTProbabilitiesMetric name="mifst_all" custom_type="mifst_all" residue_selector="design_chain" multirun="true" use_gpu="false"/>
+        <MIFSTProbabilitiesMetric name="mifst_five" custom_type="mifst_five" residue_selector="saved_random" multirun="true" use_gpu="false"/>
+	<PseudoPerplexityMetric name="perplexity_mifst" metric="mifst_all" custom_type="mifst_pp_all"/>
+	
+    </SIMPLE_METRICS>
+
+    <FILTERS>
+
+	<SimpleMetricFilter name="filt_pp_esm" metric="perplexity_esm" comparison_type="lt" cutoff="100"/>
+	<SimpleMetricFilter name="filt_pp_mifst" metric="perplexity_mifst" comparison_type="lt" cutoff="100"/>
+
+    </FILTERS>
+    
+    <MOVERS>
+      
+	<SampleSequenceFromProbabilities name="sample_mutations_esm" metric="esm_five" pos_temp="%%pos_temp%%" aa_temp="%%aa_temp%%" prob_cutoff="0.2" delta_prob_cutoff="0.0" max_mutations="%%n_muts%%" task_operations="ifcl"/>
+	<SampleSequenceFromProbabilities name="sample_mutations_mifst" metric="mifst_five" pos_temp="%%pos_temp%%" aa_temp="%%aa_temp%%" prob_cutoff="0.2" delta_prob_cutoff="0.0" max_mutations="%%n_muts%%" task_operations="ifcl"/>
+	
+	<SwitchMover name="protocol" movers="sample_mutations_esm,sample_mutations_mifst" selected="%%protocol%%"/>
+
+	<IteratedConvergence name="converge_it" mover="protocol" filter="%%filter%%" delta="0.001" maxcycles="200"/>
+
+	<StoreResidueSubset name="store_subset" residue_selector="random_5" subset_name="saved_random"/>
+	
+    </MOVERS>
+    
+    <PROTOCOLS>
+
+	<Add mover="store_subset"/>
+        <Add mover="converge_it"/>
+        
+    </PROTOCOLS>
+    <OUTPUT scorefxn="scorefxn"/>
+</ROSETTASCRIPTS>

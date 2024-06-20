@@ -1,0 +1,56 @@
+<ROSETTASCRIPTS>
+  
+    <SCOREFXNS>
+        <ScoreFunction name="scorefxn" weights="beta"/>
+    </SCOREFXNS>
+    
+    <RESIDUE_SELECTORS>
+
+        <Chain name="design_chain" chains="%%design_chain%%"/>
+        <Chain name="antigen" chains="%%antigen%%"/>
+	<Not name="not_design" selector="design_chain"/>
+
+    </RESIDUE_SELECTORS>
+    
+    <TASKOPERATIONS>
+    
+	<InitializeFromCommandline name="ifcl"/>
+	<ReadResfile name="rrf" filename="%%resfile%%"/>
+	
+    </TASKOPERATIONS>
+     
+    <SIMPLE_METRICS>
+      
+        <PerResidueEsmProbabilitiesMetric name="esm_all" custom_type="esm_all" residue_selector="design_chain" model="esm2_t30_150M_UR50D" multirun="true"/>
+	<PseudoPerplexityMetric name="perplexity_esm" metric="esm_all" custom_type="esm_pp_all"/>
+	
+        <MIFSTProbabilitiesMetric name="mifst_all" custom_type="mifst_all" residue_selector="design_chain" multirun="true" use_gpu="false"/>
+	<PseudoPerplexityMetric name="perplexity_mifst" metric="mifst_all" custom_type="mifst_pp_all"/>
+	
+    </SIMPLE_METRICS>
+
+    <FILTERS>
+
+	<SimpleMetricFilter name="filt_pp_esm" metric="perplexity_esm" comparison_type="lt" cutoff="100"/>
+	<SimpleMetricFilter name="filt_pp_mifst" metric="perplexity_mifst" comparison_type="lt" cutoff="100"/>
+
+    </FILTERS>
+    
+    <MOVERS>
+      
+	<SampleSequenceFromProbabilities name="sample_mutations_esm" metric="esm_all" pos_temp="%%pos_temp%%" aa_temp="%%aa_temp%%" delta_prob_cutoff="-1.0" max_mutations="%%n_muts%%" task_operations="ifcl,rrf"/>
+	<SampleSequenceFromProbabilities name="sample_mutations_mifst" metric="mifst_all" pos_temp="%%pos_temp%%" aa_temp="%%aa_temp%%" delta_prob_cutoff="-1.0" max_mutations="%%n_muts%%" task_operations="ifcl,rrf"/>
+	
+	<SwitchMover name="protocol" movers="sample_mutations_esm,sample_mutations_mifst" selected="%%protocol%%"/>
+
+	<IteratedConvergence name="converge_it" mover="protocol" filter="%%filter%%" delta="0.001" maxcycles="200"/>
+	
+    </MOVERS>
+    
+    <PROTOCOLS>
+
+        <Add mover="converge_it"/>
+        
+    </PROTOCOLS>
+    <OUTPUT scorefxn="scorefxn"/>
+</ROSETTASCRIPTS>

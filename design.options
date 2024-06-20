@@ -1,0 +1,7 @@
+-linmem_ig 5
+-ex1
+-ex2aro
+-beta
+-never_rerun_filters 
+-multiple_processes_writing_to_one_directory
+-nstruct 1000

@@ -1,0 +1,74 @@
+<ROSETTASCRIPTS>
+  
+    <SCOREFXNS>
+        <ScoreFunction name="scorefxn" weights="beta"/>
+    </SCOREFXNS>
+    
+    <RESIDUE_SELECTORS>
+
+        <Chain name="design_chain" chains="%%design_chain%%"/>
+        <Chain name="antigen" chains="%%antigen%%"/>
+	<Not name="not_design" selector="design_chain"/>
+
+
+        <Index name="fixed" resnums="1,2,64,65,66,67,96,119,120,222,238"/>
+        <Not name="free" selector="fixed"/>
+
+        <RandomResidue name="random_5" selector="free" num_residues="5"/>
+
+        <StoredResidueSubset name="saved_random" subset_name="saved_random"/>
+
+
+    </RESIDUE_SELECTORS>
+
+    <TASKOPERATIONS>
+
+        <InitializeFromCommandline name="ifcl"/>
+        <ReadResfile name="rrf" filename="%%resfile%%"/>
+
+        <OperateOnResidueSubset name="ORS" selector="NOT saved_random">
+                <RestrictToRepackingRLT/>
+        </OperateOnResidueSubset>
+
+    </TASKOPERATIONS>
+
+    <SIMPLE_METRICS>
+      
+        <ProteinMPNNProbabilitiesMetric name="mpnn_all" custom_type="mpnn_all" residue_selector="design_chain"/>
+	
+    </SIMPLE_METRICS>
+    
+    <MOVERS>
+      
+        <FastRelax name="IF_relax" relaxscript="InterfaceRelax2019" scorefxn="scorefxn">
+            <MoveMap name="rest" bb="true" chi="true"/>
+        </FastRelax>
+        
+        <FastRelax name="relax" relaxscript="MonomerRelax2019" scorefxn="scorefxn">
+            <MoveMap name="rest" bb="true" chi="true"/>
+        </FastRelax>
+
+	<SampleSequenceFromProbabilities name="sample_mutations_mpnn" metric="mpnn_all" pos_temp="%%pos_temp%%" aa_temp="%%aa_temp%%" delta_prob_cutoff="-1.0" max_mutations="%%n_muts%%" task_operations="ifcl,rrf,ORS"/>
+	
+	<If name="if_relax" value="%%AIFA%%" true_mover_name="IF_relax" false_mover_name="relax"/>
+	
+	<SwitchMover name="protocol" movers="if_relax,sample_mutations_mpnn" selected="%%protocol%%"/>
+
+        <StoreResidueSubset name="store_subset" residue_selector="random_5" subset_name="saved_random"/>
+
+	
+    </MOVERS>
+    
+    <PROTOCOLS>
+
+        <Add mover="store_subset"/>
+
+        <Add mover="protocol"/>
+	<Add mover="if_relax"/>
+	<Add mover="protocol"/>
+	<Add mover="if_relax"/>
+	<Add mover="protocol"/>
+        
+    </PROTOCOLS>
+    <OUTPUT scorefxn="scorefxn"/>
+</ROSETTASCRIPTS>
